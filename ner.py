@@ -142,7 +142,7 @@ class EntityExtractor:
             logger.warning(err_msg)
 
     @staticmethod
-    def get_drugs(text: str):
+    def get_drugs(text: str, normalize=False):
         """Словарь {Вид наркотика: количество}"""
         drugs = {}
         for pattern in regex_patterns.drugs_mass_patterns:
@@ -207,11 +207,30 @@ class EntityExtractor:
                 return None
 
         # TODO: move to self.normalize_values() with dict type check
-        drug_string = "; ".join(
-            k + ": " + EntityExtractor.normalize_value(v) for k, v in drugs.items()
+        if normalize:
+            drug_string = "; ".join(
+                k + ": " + EntityExtractor.normalize_value(v) for k, v in drugs.items()
+            )
+        else:
+             drug_string = "; ".join(
+            k + ": " + v for k, v in drugs.items()
         )
         return drug_string
-
+    
+    @staticmethod
+    def normalize_value(value):
+        if isinstance(value, dict):
+            dict_value_normalized = {k: self.normalize_value(v) for k, v in summary_dict.items()}
+            return dict_value_normalized
+        if value==False:
+            return "нет"
+        if value==True:
+            return "да"
+        if value is None:
+            return "нет данных"
+        else:
+            return value
+        
     @staticmethod
     def get_largest_drug(text: str, drugs: str):
         """Выделение самого крупного по относительному размеру наркотика"""
@@ -422,8 +441,7 @@ class EntityExtractor:
         largest_drug = EntityExtractor.get_largest_drug(text, drugs)
         general_drug_size = EntityExtractor.get_general_drug_size(text)
         mass = EntityExtractor.get_mass(text, drugs, largest_drug)
-        extenuating_circumstances = EntityExtractor.get_aggravating_circumstances()
-        aggravating_circumstances = EntityExtractor.get_aggravating_circumstances()
+        extenuating_circumstances = EntityExtractor.get_extenuating_circumstances(text)
         
         summary_dict = {
             "Судимость": conviction,
@@ -434,8 +452,7 @@ class EntityExtractor:
             "Главный наркотик": regex_patterns.drug_clean_dict.get(largest_drug),
             "Размер": general_drug_size,
             "Смягчающие обстоятельства": extenuating_circumstances,
-            "Отягчающие обстоятельства": aggravating_circumstances,
-            "Количество": mass,
+            "Количество": mass
         }
         # summary_dict_normalized = {k: self.normalize_value(v) for k, v in summary_dict.items()}
         return summary_dict
