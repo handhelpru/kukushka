@@ -21,9 +21,9 @@ logger.add(
 
 
 class RequestModel(BaseModel):
-    sex: int
-    region: int
-    drug: int
+    sex: str
+    region: str
+    drug: str
     drug_amount: float
     """
     plea_guilty: int
@@ -45,6 +45,7 @@ sklearn_adapter = model_adapter.SklearnAdapter(
     )
 xgboost_adapter = model_adapter.XgBoostAdapter()
 """
+
 
 @app.post("/predict")
 def predict(request_data: RequestModel, request: Request):
