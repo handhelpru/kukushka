@@ -20,6 +20,24 @@ emb = NewsEmbedding()
 ner_tagger = NewsNERTagger(emb)
 
 
+def extract_name_from_db_field(text_field: str):
+    """ full_case.u_common_case_defendant_m Field example:
+    Габдуллин Р.Ф..  ...  .01.09.2015.  ...  .ст.228 ч.1 УК РФ.  ...  .ОБВИНИТЕЛЬНЫЙ приговор
+    """
+    if text_field is None:
+        return None
+    results = []
+    doc = Doc(text_field)
+    doc.segment(segmenter)
+    doc.tag_ner(ner_tagger)
+    for s in doc.spans:
+        if s.type == "PER":
+            results.append(s.text)
+    if len(results) == 0:
+        return None
+    return results
+
+
 def extract_articles(case_document_articles_record: str):
     parts = case_document_articles_record[2:-2].split('", "')
 
@@ -116,11 +134,10 @@ class EntityExtractor:
         try:
             for p in regex_patterns.non_conviction_patterns:
                 if p in text:
-                    result =  False
+                    result = False
             for p in regex_patterns.conviction_patterns:
                 if p in text:
-                    result =  True
-
+                    result = True
             return result
             
         except BaseException as e:
@@ -420,8 +437,11 @@ class EntityExtractor:
         if not self.conviction:  # TODO: if not convicted before, then there was no imprisonment
             self.imprisonment = False
 
-        self.punishment_type, self.punishment_duration = self.get_punishment(self.text)
+        self.punishment_type, self.punishment_duration_month = self.get_punishment(self.text)
 
+        self.drugs = self.get_drugs(self.text)
+        self.largest_drug = self.get_largest_drug(text, self.drugs)
+        self.mass = self.get_mass(text=text, drugs=self.drugs, largest_drug=self.largest_drug)
         summary_dict = {
             "Суд": self.court_name,
             # "Дата приговора": self.sentence_date,
@@ -429,7 +449,7 @@ class EntityExtractor:
             "Особый порядок": self.special_order,
             "Судимость": self.conviction,
             "Вид наказания": self.punishment_type,
-            "Срок наказания в месяцах": self.punishment_duration,
+            "Срок наказания в месяцах": self.punishment_duration_month,
             "Отбывал ли ранее лишение свободы": self.imprisonment,
             "Наркотики": self.drugs,
             "Главный наркотик": self.drug_clean_dict.get(self.largest_drug),
