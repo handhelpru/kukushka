@@ -302,10 +302,7 @@ class EntityExtractor:
         # get type of sentence - suspended or not
         punishment_type = (
             "Условное лишение свободы"
-            if all(
-                e in text[sentence_match.start() :]
-                for e in regex_patterns.suspended_sentence_patterns
-            )
+            if all(e in text[sentence_match.start():] for e in regex_patterns.suspended_sentence_patterns               )
             else "Лишение свободы"
         )
 
