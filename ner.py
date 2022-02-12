@@ -386,30 +386,6 @@ class EntityExtractor:
             logger.warning(err_msg)
 
     @staticmethod
-    def get_aggravating_circumstances(text: str):
-        """Отягчающие обстоятельства"""
-        try:
-            # create zero list
-            aggravating_circumstances = []
-
-            # enumerate all aggravating patterns
-            for name, patterns in regex_patterns.aggravating_patterns.items():
-
-                # if there is match, add name
-                if any(e in text for e in patterns):
-                    aggravating_circumstances.append(name)
-
-            # return aggravating circumstances joined by comma
-            return (
-                ",".join(aggravating_circumstances)
-                if aggravating_circumstances
-                else None
-            )
-        except BaseException as e:
-            err_msg = "Could not extract aggravating_circumstances: {}".format(e)
-            logger.warning(err_msg)
-
-    @staticmethod
     def get_special_order(text: str):
         """Особый порядок да/нет"""
         return any(e in text for e in regex_patterns.special_order_patterns)
