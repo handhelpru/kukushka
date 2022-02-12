@@ -1,6 +1,6 @@
 pandas
 psycopg2  # install pre-req libs from official manual
-natasha==0.10.0
+natasha==1.4.0
 yargy
 typing==3.6.6
 matplotlib==3.5.1
