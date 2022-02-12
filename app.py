@@ -21,7 +21,7 @@ logger.add(
 
 
 class RequestModel(BaseModel):
-    # TODO: Add features
+    # TODO: Add features, add validation
     pass
 
 
