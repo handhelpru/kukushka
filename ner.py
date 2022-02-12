@@ -20,24 +20,6 @@ emb = NewsEmbedding()
 ner_tagger = NewsNERTagger(emb)
 
 
-def extract_name_from_db_field(text_field: str):
-    """ full_case.u_common_case_defendant_m Field example:
-    Габдуллин Р.Ф..  ...  .01.09.2015.  ...  .ст.228 ч.1 УК РФ.  ...  .ОБВИНИТЕЛЬНЫЙ приговор
-    """
-    if text_field is None:
-        return None
-    results = []
-    doc = Doc(text_field)
-    doc.segment(segmenter)
-    doc.tag_ner(ner_tagger)
-    for s in doc.spans:
-        if s.type == "PER":
-            results.append(s.text)
-    if len(results) == 0:
-        return None
-    return results
-
-
 def extract_articles(case_document_articles_record: str):
     parts = case_document_articles_record[2:-2].split('", "')
 
@@ -134,10 +116,11 @@ class EntityExtractor:
         try:
             for p in regex_patterns.non_conviction_patterns:
                 if p in text:
-                    result = False
+                    result =  False
             for p in regex_patterns.conviction_patterns:
                 if p in text:
-                    result = True
+                    result =  True
+
             return result
             
         except BaseException as e:
@@ -427,36 +410,32 @@ class EntityExtractor:
                 return None
 
     @staticmethod
-    def extract_features(self, text: str):
-        # text = text.lower()
-        self.text = text
-
-        self.sentences = self.split_sentences(text)
-
-        self.conviction = self.get_conviction(text)
-        if not self.conviction:  # TODO: if not convicted before, then there was no imprisonment
-            self.imprisonment = False
-
-        self.punishment_type, self.punishment_duration_month = self.get_punishment(self.text)
-
-        self.drugs = self.get_drugs(self.text)
-        self.largest_drug = self.get_largest_drug(text, self.drugs)
-        self.mass = self.get_mass(text=text, drugs=self.drugs, largest_drug=self.largest_drug)
+    def extract_features(text: str):
+        sentences = EntityExtractor.split_sentences(text)
+        conviction = EntityExtractor.get_conviction(text)
+        imprisonment = EntityExtractor.get_imprisonment(text)
+        if not conviction:  # TODO: if not convicted before, then there was no imprisonment
+            imprisonment = False
+       
+        punishment_type, punishment_duration = EntityExtractor.get_punishment(text)
+        drugs = EntityExtractor.get_drugs(text)
+        largest_drug = EntityExtractor.get_largest_drug(text, drugs)
+        general_drug_size = EntityExtractor.get_general_drug_size(text)
+        mass = EntityExtractor.get_mass(text, drugs, largest_drug)
+        extenuating_circumstances = EntityExtractor.get_aggravating_circumstances()
+        aggravating_circumstances = EntityExtractor.get_aggravating_circumstances()
+        
         summary_dict = {
-            "Суд": self.court_name,
-            # "Дата приговора": self.sentence_date,
-            # "ФИО": self.defendants,
-            "Особый порядок": self.special_order,
-            "Судимость": self.conviction,
-            "Вид наказания": self.punishment_type,
-            "Срок наказания в месяцах": self.punishment_duration_month,
-            "Отбывал ли ранее лишение свободы": self.imprisonment,
-            "Наркотики": self.drugs,
-            "Главный наркотик": self.drug_clean_dict.get(self.largest_drug),
-            "Размер": self.general_drug_size,
-            "Смягчающие обстоятельства": self.extenuating_circumstances,
-            "Отягчающие обстоятельства": self.aggravating_circumstances,
-            "Количество": self.mass,
+            "Судимость": conviction,
+            "Вид наказания": punishment_type,
+            "Срок наказания в месяцах": punishment_duration,
+            "Отбывал ли ранее лишение свободы": imprisonment,
+            "Наркотики": drugs,
+            "Главный наркотик": regex_patterns.drug_clean_dict.get(largest_drug),
+            "Размер": general_drug_size,
+            "Смягчающие обстоятельства": extenuating_circumstances,
+            "Отягчающие обстоятельства": aggravating_circumstances,
+            "Количество": mass,
         }
         # summary_dict_normalized = {k: self.normalize_value(v) for k, v in summary_dict.items()}
         return summary_dict
