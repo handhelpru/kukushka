@@ -8,7 +8,7 @@ defendant_full_name_pattern = re.compile(
 
 conviction_patterns = ["ранее судим", "рецидив"]
 
-non_conviction_patterns = ["не судим", "не образующей рецидива"]
+non_conviction_patterns = ["не судим", "не образующей рецидива", "не имеющий судимости", "не имеющая судимости"]
 
 # patterns to search sentence
 sentence_patterns = re.compile("приговорил|П Р И Г О В О Р И Л", re.IGNORECASE)
