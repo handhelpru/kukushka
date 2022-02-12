@@ -3,14 +3,14 @@ import os
 import io
 import json
 
-class NameParser():
 
+class NameParser:
     # patterns to check if pleaded not guilty
     re_plea_not_guilty = [
         re.compile("вину.{0,300}не признал",    re.IGNORECASE),
         re.compile("не признал.{0,300}вину",    re.IGNORECASE),
         re.compile("виновн.{0,300}не признал",  re.IGNORECASE),
-        re.compile("не признал.{0,300}виновн",  re.IGNORECASE) ]
+        re.compile("не признал.{0,300}виновн",  re.IGNORECASE)]
 
     # patterns to check if pleaded guilty
     re_plea_guilty = [
@@ -18,15 +18,15 @@ class NameParser():
         re.compile("признал.{0,300}вину",   re.IGNORECASE),
         re.compile("виновн.{0,300}признал", re.IGNORECASE),
         re.compile("признал.{0,300}виновн", re.IGNORECASE),
-        re.compile("признание вины",        re.IGNORECASE) ]
+        re.compile("признание вины",        re.IGNORECASE)]
 
     # patterns to check if male
-    re_male = [ "судимого", "имеющего судимость", "признал[\W]" ]
+    re_male = ["судимого", "имеющего судимость", "признал[\W]"]
 
     # patterns to check if female
-    re_female = [ "судимой", "имеющей судимость", "признала" ]
+    re_female = ["судимой", "имеющей судимость", "признала"]
 
-    def __init__(self, text):
+    def __init__(self, text: str):
         self.text = text
         self.paragraphs = self.text.split('\n')
 
@@ -38,13 +38,15 @@ class NameParser():
         for pattern in self.re_plea_not_guilty:
 
             # if matches, return False: not pleaded guilty
-            if pattern.search(self.text): return False
+            if pattern.search(self.text):
+                return False
 
         # then check if pleaded guilty
         for pattern in self.re_plea_guilty:
 
             # if matches, return True: pleaded guilty
-            if pattern.search(self.text): return True
+            if pattern.search(self.text):
+                return True
 
         # nothing found, return None
         return None
@@ -53,23 +55,28 @@ class NameParser():
     def sex(self):
 
         # matches count
-        cnt_male   = 0
+        cnt_male = 0
         cnt_female = 0
 
         # count male patterns
-        for pattern in self.re_male: cnt_male += len(re.findall(pattern, self.text))
+        for pattern in self.re_male:
+            cnt_male += len(re.findall(pattern, self.text))
 
         # count female patterns
-        for pattern in self.re_female: cnt_female += len(re.findall(pattern, self.text))
+        for pattern in self.re_female:
+            cnt_female += len(re.findall(pattern, self.text))
 
         # is male
-        if cnt_male > cnt_female: return "male"
+        if cnt_male > cnt_female:
+            return "male"
 
         # is female
-        if cnt_male < cnt_female: return "female"
+        if cnt_male < cnt_female:
+            return "female"
 
         # equal
         return None
+
 
 def txt_get_text(filename):
     """ Получение содержимого текстового файла """
@@ -80,6 +87,7 @@ def txt_get_text(filename):
 
     # return text
     return text
+
 
 if __name__=="__main__":
 
