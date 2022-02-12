@@ -11,3 +11,8 @@ tqdm==4.62.3
 beautifulsoup4==4.7.1
 loguru==0.6.0
 openpyxl
+joblib
+xgboost==1.5.2
+scikit_learn==1.0.2
+fastapi==0.73.0
+uvicorn==0.17.4
