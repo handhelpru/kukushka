@@ -1,3 +1,4 @@
+# noinspection LanguageDetectionInspection
 import re
 import os
 import io
@@ -5,7 +6,7 @@ import itertools
 import json
 from natasha import NamesExtractor, MorphVocab, Doc, Segmenter, NewsEmbedding, NewsNERTagger
 import logging
-
+import regex_patterns
 
 logger = logging.getLogger()
 logging.basicConfig(
@@ -37,380 +38,37 @@ def extract_articles(case_document_articles_record: str):
 
 
 class EntityExtractor:
-    """All methods return parsed values in json format"""
-
     intro_limit = 200  # first symbols to search for sentence_date
 
-    # pattern to search court name
-    # court_name_pattern = re.compile("\s+(.*) в составе")  # old
-    court_name_pattern = re.compile("\s+(.*)[ \n]в составе", re.MULTILINE)
+    def __init__(self):
+        pass
 
-    # pattern to search defendant's name
-    defendant_full_name_pattern = re.compile(
-        "подсудим[огй]{2,3} (.*)[ ,\r\n]", re.MULTILINE
-    )
-
-    # patterns to search conviction
-    conviction_patterns = ["ранее судим", "рецидив"]
-    non_conviction_patterns = ["не судим", "не образующей рецидива"]
-
-    # patterns to search sentence
-    sentence_patterns = re.compile("приговорил|П Р И Г О В О Р И Л", re.IGNORECASE)
-
-    # patterns to search suspended sentence
-    suspended_sentence_patterns = ["условн", " 73 "]
-
-    # patterns to search imprisonment
-    imprisonment_patterns = [
-        re.compile("освобожд[её]на? по отбытию срока", re.IGNORECASE),
-        re.compile("освобожд[её]на? условно-досрочно", re.IGNORECASE),
-        re.compile("освобожд[её]на? из колонии по постановлению", re.IGNORECASE),
-    ]
-
-    # drugs mass patterns
-    drugs_mass_patterns = [
-        re.compile("\.(.*?)([\d.,]+) (килогр\w+)(.*?)\.", re.IGNORECASE),
-        re.compile("\.(.*?)([\d.,]+) (грам\w+)(.*?)\.", re.IGNORECASE),
-        re.compile("\.(.*?)([\d.,]+) (гр\.)(.*?)\.", re.IGNORECASE),
-    ]
-
-    # drugs patterns
-    drugs_sizes = {
-        "гашиш.?.?": [2, 25, 10000],
-        "конопл..?": [6, 100, 100000],
-        "марихуан..?": [6, 100, 100000],
-        "метамфетамин.?.?": [0.3, 2.5, 500],
-        "первитин.?.?": [0.3, 2.5, 500],
-        "амфетамин.?.?": [0.2, 1, 200],
-        "N-диметиламфетамин.?.?": [0.5, 2.5, 500],
-        "экстракт.?.? маковой соломы": [1, 5, 500],
-        "являющееся производным": [0.05, 0.25, 500],
-        "метилендиоксипировалерон.?.?": [0.6, 3.0, 600],
-        "пирролидиновалерофенон.?.?": [0.05, 0.25, 500],
-        "кокаин.?.?": [0.5, 5, 1500],
-        "героин.?.?": [0.5, 2.5, 1000],
-        "моноацетилморфин.?.?": [0.5, 2.5, 1000],
-        "морфин.?.?": [0.5, 2.5, 500],
-        "опий": [1, 25, 5000],
-        "маков.. солом.": [20, 500, 100000],
-        "ацетилкодеин.?.?": [0.5, 2.5, 1000],
-        "метадон.?.?": [0.5, 2.5, 1000],
-        "мдма": [0.6, 3.0, 600],
-        "мда": [0.6, 3.0, 600],
-        "мефедрон.?.?": [0.2, 2.5, 500],
-        "производн.?.?. N-метилэфедрона": [0, 2, 1, 200],
-        "метилэфедрон.?.?": [0.2, 1, 200],
-        "3-meo-mpc": [0.05, 0.25, 500],
-        "тетраметилциклопропил.?.?": [0.05, 0.25, 500],
-        "2c-b": [0.01, 0.5, 10],
-        "масло каннабиса": [0.4, 5, 1000],
-        "гашишно..?.? масл..?": [0.4, 5, 1000],
-        "jwh": [0.05, 0.25, 500],
-        "хинолин": [0.05, 0.25, 500],
-        "индол": [0.05, 0.25, 500],
-        "карфентанил.?.?": [0.002, 0.01, 2],
-        "фентанил.?.?": [0.002, 0.01, 2],
-        "метилов...?.? эфир.?.?": [0.05, 0.25, 500],
-        "псилоцибин.?.?": [0.05, 0.25, 50],
-        "псилоцин.?.?": [0.05, 0.25, 50],
-        "дмт": [0.5, 2.5, 500],
-        "диметилтриптамин.?.?": [0.5, 2.5, 500],
-        "nbome": [0.2, 1.0, 200],
-        "доб": [0.01, 0.05, 10],
-        "броламфетамин.?.?": [0.01, 0.05, 10],
-        "мескалин.?.?": [0.5, 2.5, 500],
-        "дезоморфин.?.?": [0.05, 0.25, 10],
-    }
-
-    drug_clean_dict = {
-        "героин.?.?": "Героин",
-        "производн.?.?. N-метилэфедрона": "Производное N-метилэфедрона",
-        "являющееся производным": "Производное",
-        "конопл..?": "Каннабис",
-        "амфетамин.?.?": "Амфетамин",
-        "метилов...?.? эфир.?.?": "Метиловый эфир",
-        "метилэфедрон.?.?": "Метилэфедрон",
-        "марихуан..?": "Каннабис",
-        "пирролидиновалерофенон.?.?": "Пирролидиновалерофенон",
-        "тетраметилциклопропил.?.?": "Тетраметилциклопропил",
-        "масло каннабиса": "Конопляное/гашишное масло",
-        "дезоморфин.?.?": "Дезоморфин",
-        "гашишно..?.? масл..?": "Конопляное/гашишное масло",
-        "индол": "Спайс",
-        "метамфетамин.?.?": "Метамфетамин",
-        "экстракт.?.? маковой соломы": "Экстракт маковой соломы",
-        "кокаин.?.?": "Кокаин",
-        "маков.. солом.": "Маковая солома",
-        "мдма": "МДМА",
-        "гашиш.?.?": "Гашиш",
-        "метадон.?.?": "Метадон",
-        "хинолин": "Спайс",
-        "мефедрон.?.?": "Мефедрон",
-        "jwh": "JWH",
-        "карфентанил.?.?": "Карфентанил",
-        "фентанил.?.?": "Фентанил",
-        "морфин.?.?": "Морфин",
-        "лсд": "ЛСД",
-        "конопл..?; марихуан..?": "Каннабис",
-        "метилендиоксипировалерон.?.?": "Метилендиоксипировалерон",
-        "опий": "Опий",
-        "моноацетилморфин.?.?": "Моноацетилморфин",
-        "броламфетамин.?.?": "ДОБ",
-        "индол; пирролидиновалерофенон.?.?": "Соль",
-        "конопл..?; масло каннабиса": "Конопляное/гашишное масло",
-        "псилоцибин.?.?": "Псилоцибин",
-        "2c-b": "2C-B",
-        "первитин.?.?": "Метамфетамин",
-        "доб": "ДОБ",
-        "ацетилкодеин.?.?": "Ацетилкодеин",
-        "дмт": "ДМТ",
-        "пирролидиновалерофенон.?.?; индол; метилэфедрон.?.?": "Соль",
-        "конопл..?; гашиш.?.?; марихуан..?": "Каннабис",
-        "марихуан..?; гашиш.?.?": "Каннабис",
-    }
-
-    special_regex_cases = {
-        r"хинолин-\d": "-хинолин-",
-        r"\bдигидрохинолин\b": "-хинолин-",
-        r"\bтетрагидроизохинолин\b": "-хинолин-",
-        r"\b-индол-\b": "-индол-",
-    }
-
-    special_regex_sizes = {"-хинолин-": [0.05, 0.25, 500], "-индол-": [0.05, 0.25, 500]}
-
-    # pattern to search punishment
-    punishment_patterns = [
-        re.compile(
-            (
-                "виновн[ымой]{2} в совершении(?:.*?)наказание(?:.*?)(один|два|три|четыре|пять|шесть|семь|восемь|девять|десять)(?:.*?)(?:год|лет)"
-                "(?:(?:.*?)(один|два|три|четыре|пять|шесть|семь|восемь|девять|десять|одиннадцать|двенадцать)(?:.*?)(?:месяц))?(?:.*?)\."
-            ),
-            re.IGNORECASE,
-        ),
-        re.compile(
-            "виновн[ымой]{2} в совершении(?:.*?)наказание(?:.*?)(\d\d?)(?:.*?)(?:год|лет)(?:(?:.*?)(\d\d?)(?:.*?)(?:месяц))?(?:.*?)\.",
-            re.IGNORECASE,
-        ),
-    ]
-
-    # russian numbers
-    russian_numbers = [
-        "ноль",
-        "один",
-        "два",
-        "три",
-        "четыре",
-        "пять",
-        "шесть",
-        "семь",
-        "восемь",
-        "девять",
-        "десять",
-        "одиннадцать",
-        "двенадцать",
-    ]
-
-    # pattern to search drugs
-    drugs_sp = re.compile("вещества:")
-
-    # patterns to search special order
-    special_order_patterns = [
-        "317 Уголовно-процессуальн",
-        "316 Уголовно-процессуальн",
-        "317 УПК",
-        "316 УПК",
-        "в особом порядке",
-        "без проведения судебного разбирательства",
-    ]
-
-    # patterns to search extenuating circumstances
-    extenuating_patterns = [
-        re.compile(
-            "(?:обстоятельств(?:.*?)смягчающ|смягчающ(?:.*?)обстоятельств)(?:.*?)(?:призна[её]т(?:.*?)учитывает|призна[её]т|учитывает)(?:.*?что |.*?: | )(.*)[\r\n]?",
-            re.IGNORECASE,
-        ),
-        re.compile("(.*суд признает смягчающими обстоятельствами)", re.IGNORECASE),
-    ]
-
-    # patterns to search aggravating circumstances
-    aggravating_patterns = {
-        "рецидив преступлений": ["рецидив"],
-        "наступление тяжких последствий в результате совершения преступления": [
-            "тяжких последствий"
-        ],
-        (
-            "совершение преступления в составе группы лиц, группы лиц по предварительному сговору, "
-            "организованной группы или преступного сообщества(преступной организации)"
-        ): [
-            "в составе группы",
-            "по предварительному сговору",
-            "организованной группы",
-            "преступного сообщества",
-            "преступной организации",
-        ],
-        "особо активная роль в совершении преступления": ["особо активн"],
-        (
-            "привлечение к совершению преступления лиц, которые страдают тяжелыми психическими расстройствами либо находятся в состоянии опьянения,"
-            " а также лиц, не достигших возраста, с которого наступает уголовная ответственность"
-        ): ["привлечение к совершению преступления"],
-        (
-            "совершение преступления по мотивам политической, идеологической, расовой, национальной или религиозной ненависти или вражды "
-            "либо по мотивам ненависти или вражды в отношении какой-либо социальной группы;"
-        ): ["ненависти", "вражды"],
-        "совершение преступления из мести за правомерные действия других лиц, а также с целью скрыть другое преступление или облегчить его совершение": [
-            "из мести",
-            "скрыть другое преступление",
-            "облегчить совершение",
-        ],
-        "совершение преступления в отношении лица или его близких в связи с осуществлением данным лицом служебной деятельности или выполнением общественного долга": [
-            "служебной деятельности",
-            "выполнением общественного долга",
-        ],
-        (
-            "совершение преступления в отношении женщины, заведомо для виновного находящейся в состоянии беременности, а также в отношении малолетнего, "
-            "другого беззащитного или беспомощного лица либо лица, находящегося в зависимости от виновного"
-        ): [
-            "заведомо для виновного находящейся в состоянии беременности",
-            "беззащитн",
-            "беспомощн",
-            "в зависимости от виновн",
-        ],
-        "совершение преступления с особой жестокостью, садизмом, издевательством, а также мучениями для потерпевшего": [
-            "жестокост",
-            "садизм",
-            "издевательств",
-            "мучен",
-        ],
-        (
-            "совершение преступления с использованием оружия, боевых припасов, взрывчатых веществ, взрывных или имитирующих их устройств, "
-            "специально изготовленных технических средств, наркотических средств, психотропных, сильнодействующих, ядовитых и радиоактивных веществ, "
-            "лекарственных и иных химико-фармакологических препаратов, а также с применением физического или психического принуждения"
-        ): [
-            "оружия",
-            "боевых припасов",
-            "взрывчат",
-            "взрывн",
-            "ядовит",
-            "радиоактивн",
-            "физического принуждения",
-            "психического принуждения",
-        ],
-        (
-            "совершение преступления в условиях чрезвычайного положения, стихийного или иного общественного бедствия, а также при массовых беспорядках,"
-            " в условиях вооруженного конфликта или военных действий"
-        ): [
-            "чрезвычайного положения",
-            "стихийного бедствия",
-            "беспорядках",
-            "в условиях вооруженного конфликта",
-            "в условиях военных действий",
-        ],
-        "совершение преступления с использованием доверия, оказанного виновному в силу его служебного положения или договора": [
-            "с использованием доверия"
-        ],
-        "совершение преступления с использованием форменной одежды или документов представителя власти": [
-            "форменной одежды",
-            "документов представителя власти",
-        ],
-        "совершение умышленного преступления сотрудником органа внутренних дел": [
-            "совершение умышленного преступления сотрудником органа внутренних дел"
-        ],
-        (
-            "совершение преступления в отношении несовершеннолетнего (несовершеннолетней) родителем или иным лицом, на которое законом возложены "
-            "обязанности по воспитанию несовершеннолетнего (несовершеннолетней), а равно педагогическим работником или другим работником образовательной"
-            " организации, медицинской организации, организации, оказывающей социальные услуги, либо иной организации, обязанным осуществлять "
-            "надзор за несовершеннолетним (несовершеннолетней)"
-        ): [
-            "законом возложены обязанности по воспитанию",
-            "педагогическим работником",
-            "работником образовательной организации",
-            "осуществлять надзор за несовершеннолетн",
-        ],
-        "совершение преступления в целях пропаганды, оправдания и поддержки терроризма": [
-            "терроризм"
-        ],
-        "совершение преступления в состоянии опьянения": [
-            "совершение преступления в состоянии опьянения"
-        ],
-    }
-
-    # паттерны поиска размера
-    general_drug_size_patterns = {
-        "Особо крупный": "в особо крупном размере",
-        "Крупный": "в крупном размере",
-        "Значительный": "в значительном размере",
-    }
-
-    def __init__(self, text):
-        self.text = text.lower()
-        self.sentences = self.split_sentences(self.text)
-        self.errors = []
-    
+    @staticmethod
     def split_sentences(text: str):
         doc = Doc(text.replace("\n", " "))
         doc.segment(segmenter)
         sentences = [d.text for d in doc.sents]
         return sentences
-    
-    def get_court_name(self):
+
+    @staticmethod
+    def get_court_name(text: str):
         """Суд, выносящий приговор"""
         try:
-            match = self.court_name_pattern.search(self.text)
+            match = regex_patterns.court_name_pattern.search(text)
             return match.group(1)
         except BaseException as e:
             error_msg = "Could not extract court_name"
             logger.error(error_msg)
-    
-    '''
-    @property
-    def sentence_date(self):
-        """Дата приговора
-        Ищется первая дата в первых 200 символах
-        """
-        try:
-            # date_matches = der(self.text[:self.intro_limit])
-            date_matches = der(
-                self.text[: self.intro_limit].replace("«", "").replace("»", "")
-            )
-            facts = [_.fact.as_json for _ in date_matches]
-            if len(date_matches.as_json) > 0:
-                result_dict = date_matches.as_json[0]["fact"]
-                year = result_dict.get("year")
-                month = result_dict.get("month")
-                day = result_dict.get("day")
-                return "{}/{}/{}".format(year, month, day)
-        except BaseException as e:
-            err_msg = "Could not extract sentence_date: {}".format(e)
-            logger.critical(err_msg)
-            self.errors.append(err_msg)
-    '''
-    @property
-    def name_from_db_field(self):
-        """ full_case.u_common_case_defendant_m Field example:
-        Габдуллин Р.Ф..  ...  .01.09.2015.  ...  .ст.228 ч.1 УК РФ.  ...  .ОБВИНИТЕЛЬНЫЙ приговор
-        """
-        if self.name_field_db is None:
-            return None
-        results = []
-        doc = Doc(self.name_field_db)
-        doc.segment(segmenter)
-        doc.tag_ner(ner_tagger)
-        for s in doc.spans:
-            if s.type=="PER":
-                results.append(s.text)
-        if len(results)==0:
-            return None
-        return results
-    
-    @property
-    def defendants(self):
+
+    @staticmethod
+    def get_defendants(text: str):
         """Фио подсудимых"""
         # defendants list
         defendants = []
 
         try:
             # search for pattern in text
-            match = self.defendant_full_name_pattern.search(self.text)
+            match = regex_patterns.defendant_full_name_pattern.search(text)
 
             # parse line with NamesExtractor
             name = ner_tagger(match.group(0).strip(", -\t\r\n"))
@@ -446,70 +104,64 @@ class EntityExtractor:
                 return None
         except BaseException as e:
             err_msg = "Could not extract defendatns: {}".format(e)
-            self.errors.append(err_msg)
             logger.warning(err_msg)
 
         # return defendants list
         return ", ".join(defendants)
 
-    @property
-    def conviction(self):
+    @staticmethod
+    def get_conviction(text: str):
         """ Судимость да/нет """
         result = None
         try:
-            for p in self.non_conviction_patterns:
-                if p in self.text:
+            for p in regex_patterns.non_conviction_patterns:
+                if p in text:
                     result =  False
-            for p in self.conviction_patterns:
-                if p in self.text:
+            for p in regex_patterns.conviction_patterns:
+                if p in text:
                     result =  True
 
             return result
             
         except BaseException as e:
             err_msg = "Could not extract conviction: {}".format(e)
-            self.errors.append(err_msg)
             logger.warning(err_msg)
 
-    @property
-    def imprisonment(self):
+    @staticmethod
+    def get_imprisonment(text: str):
         """Отбывал ли ранее лишение свободы да/нет"""
-        # if not convicted before, then there was no imprisonment
-        if self.conviction == False:
-            return False
+
         try:
             # iterate all imprisonment patterns
-            for pattern in self.imprisonment_patterns:
-
+            for pattern in regex_patterns.imprisonment_patterns:
                 # if matches, then there was imprisonment
-                if pattern.search(self.text) != None:
+                if pattern.search(text) != None:
                     return True
         except BaseException as e:
             err_msg = "Could not extract imprisonment: {}".format(e)
-            self.errors.append(err_msg)
             logger.warning(err_msg)
 
-    @property
-    def drugs(self):
+    @staticmethod
+    def get_drugs(text: str):
         """Словарь {Вид наркотика: количество}"""
         drugs = {}
-        for pattern in self.drugs_mass_patterns:
+        for pattern in regex_patterns.drugs_mass_patterns:
             # search for all drug mass patterns
-            matches = pattern.findall(self.text)
+            matches = pattern.findall(text)
             if matches:
                 for match in matches:
                     name = None
                     try:
                         name = next(
                             drug_pattern
-                            for drug_pattern in self.drugs_sizes.keys()
+                            for drug_pattern in regex_patterns.drugs_sizes.keys()
                             if re.search(r"\b" + drug_pattern + r"\b", match[0])
                         )
                     except:
                         try:
                             name = next(
-                                self.special_regex_cases[drug_pattern]
-                                for drug_pattern in self.special_regex_cases.keys()
+                                regex_patterns.special_regex_cases[drug_pattern]
+                                for drug_pattern in regex_patterns.special_regex_cases.keys()
                                 if re.search(drug_pattern, match[0])
                             )
                         except:
@@ -530,14 +182,14 @@ class EntityExtractor:
             try:
                 name = next(
                     drug_pattern
-                    for drug_pattern in self.drugs_sizes.keys()
-                    if re.search(r"\b" + drug_pattern + r"\b", self.text)
+                    for drug_pattern in regex_patterns.drugs_sizes.keys()
+                    if re.search(r"\b" + drug_pattern + r"\b", text)
                 )
             except:
                 name = next(
-                    self.special_regex_cases[drug_pattern]
-                    for drug_pattern in self.special_regex_cases.keys()
-                    if re.search(drug_pattern, self.text)
+                    regex_patterns.special_regex_cases[drug_pattern]
+                    for drug_pattern in regex_patterns.special_regex_cases.keys()
+                    if re.search(drug_pattern, text)
                 )
 
                 # add drug to dict
@@ -551,25 +203,24 @@ class EntityExtractor:
                 err_msg = "No drugs found in whole text, check matches: {}".format(
                     matches
                 )
-                self.errors.append(err_msg)
                 logger.warning(err_msg)
                 return None
 
         # TODO: move to self.normalize_values() with dict type check
         drug_string = "; ".join(
-            k + ": " + self.normalize_value(v) for k, v in drugs.items()
+            k + ": " + EntityExtractor.normalize_value(v) for k, v in drugs.items()
         )
         return drug_string
 
-    @property
-    def largest_drug(self):
+    @staticmethod
+    def get_largest_drug(text: str, drugs: str):
         """Выделение самого крупного по относительному размеру наркотика"""
 
         # строка со списком наркотиков, в рефакторинге можно перенести в метод drugs
-        if self.drugs is None:
+        if drugs is None:
             return None
 
-        drugs_pairs = self.drugs.split("; ")
+        drugs_pairs = drugs.split("; ")
         just_names = []
 
         # найденные массы наркотиков
@@ -597,11 +248,11 @@ class EntityExtractor:
             if drug_mass > 0:
 
                 # из словарика размеров получаем лист [значительный, крупный, особо крупный]
-                if drug_name in self.drugs_sizes:
-                    sizes_list = self.drugs_sizes[drug_name]
+                if drug_name in regex_patterns.drugs_sizes:
+                    sizes_list = regex_patterns.drugs_sizes[drug_name]
 
-                elif drug_name in self.special_regex_sizes:
-                    sizes_list = self.special_regex_sizes[drug_name]
+                elif drug_name in regex_patterns.special_regex_sizes:
+                    sizes_list = regex_patterns.special_regex_sizes[drug_name]
 
                 else:
                     continue
@@ -626,25 +277,23 @@ class EntityExtractor:
 
         return largest_drug
 
-    @property
-    def general_drug_size(self):
+    @staticmethod
+    def get_general_drug_size(text: str):
         """Ищет наибольший размер (особо крупный -> крупный -> значительный), указанный в тексте приговора"""
-        for drug_size_title, drug_size in self.general_drug_size_patterns.items():
-            if drug_size in self.text:
+        for drug_size_title, drug_size in regex_patterns.general_drug_size_patterns.items():
+            if drug_size in text:
                 return drug_size_title
+        return None
 
-        return ""
-
-    @property
-    def punishment(self):
+    @staticmethod
+    def get_punishment(text: str):
         """Вид наказания (лишение свободы/ условное лишение свободы) и срок"""
 
         # zero results
         punishment_type = ""
         punishment_duration = 0
 
-        #
-        sentence_match = self.sentence_patterns.search(self.text)
+        sentence_match = regex_patterns.sentence_patterns.search(text)
 
         # if there is no sentence pattern
         if sentence_match == None:
@@ -654,8 +303,8 @@ class EntityExtractor:
         punishment_type = (
             "Условное лишение свободы"
             if all(
-                e in self.text[sentence_match.start() :]
-                for e in self.suspended_sentence_patterns
+                e in text[sentence_match.start() :]
+                for e in regex_patterns.suspended_sentence_patterns
             )
             else "Лишение свободы"
         )
@@ -665,11 +314,11 @@ class EntityExtractor:
         months = 0
 
         # iterate all punishment patterns
-        for i in range(len(self.punishment_patterns)):
+        for i in range(len(regex_patterns.punishment_patterns)):
 
             # search punishment
-            punishment_match = self.punishment_patterns[i].search(
-                self.text[sentence_match.start() :]
+            punishment_match = regex_patterns.punishment_patterns[i].search(
+                text[sentence_match.start():]
             )
 
             # if there is match
@@ -688,7 +337,7 @@ class EntityExtractor:
                     years = (
                         int(punishment_match.group(1))
                         if i == 1
-                        else self.russian_numbers.index(
+                        else regex_patterns.russian_numbers.index(
                             punishment_match.group(1).lower()
                         )
                     )
@@ -700,7 +349,7 @@ class EntityExtractor:
                         months = (
                             int(punishment_match.group(2))
                             if i == 1
-                            else self.russian_numbers.index(
+                            else regex_patterns.russian_numbers.index(
                                 punishment_match.group(2).lower()
                             )
                         )
@@ -720,30 +369,15 @@ class EntityExtractor:
         # return type and duration
         return punishment_type, punishment_duration_month
 
-    @property
-    def punishment_type(self):
-        """Вид наказания (лишение свободы/ условное лишение свободы)"""
-        return self.punishment[0]  # punishment type
-
-    @property
-    def punishment_duration(self):
-        """Срок наказания в месяцах"""
-
-        # extract info about punishment
-        p_type, p_duration = self.punishment
-
-        # return punishment duration
-        return p_duration
-
-    @property
-    def extenuating_circumstances(self):
+    @staticmethod
+    def get_extenuating_circumstances(text: str):
         """Смягчающие обстоятельства"""
         try:
             # iterate all extenuating patterns
-            for pattern in self.extenuating_patterns:
+            for pattern in regex_patterns.extenuating_patterns:
 
                 # match pattern
-                match = pattern.search(self.text)
+                match = pattern.search(text)
 
                 # if there is match
                 if match != None and len(match.groups()) > 0:
@@ -752,21 +386,20 @@ class EntityExtractor:
                     return match.group(1).strip(" \r\n,.")
         except BaseException as e:
             err_msg = "Could not extract extenuating_circumstances: {}".format(e)
-            self.errors.append(err_msg)
             logger.warning(err_msg)
 
-    @property
-    def aggravating_circumstances(self):
+    @staticmethod
+    def get_aggravating_circumstances(text: str):
         """Отягчающие обстоятельства"""
         try:
             # create zero list
             aggravating_circumstances = []
 
             # enumerate all aggravating patterns
-            for name, patterns in self.aggravating_patterns.items():
+            for name, patterns in regex_patterns.aggravating_patterns.items():
 
                 # if there is match, add name
-                if any(e in self.text for e in patterns):
+                if any(e in text for e in patterns):
                     aggravating_circumstances.append(name)
 
             # return aggravating circumstances joined by comma
@@ -777,40 +410,21 @@ class EntityExtractor:
             )
         except BaseException as e:
             err_msg = "Could not extract aggravating_circumstances: {}".format(e)
-            self.errors.append(err_msg)
             logger.warning(err_msg)
 
-    @property
-    def special_order(self):
+    @staticmethod
+    def get_special_order(text: str):
         """Особый порядок да/нет"""
-        return any(e in self.text for e in self.special_order_patterns)
+        return any(e in text for e in regex_patterns.special_order_patterns)
 
     @staticmethod
-    def normalize_value(value):
-        if isinstance(value, dict):
-            dict_value_normalized = {
-                k: self.normalize_value(v) for k, v in summary_dict.items()
-            }
-            return dict_value_normalized
-            """
-            if value is None:
-                return "нет данных"
-                    if value==False:
-                return "нет"
-            if value==True:
-                return "да"
-            """
-        else:
-            return value
+    def get_mass(text: str, drugs: str, largest_drug: str):
+        main_drug = regex_patterns.drug_clean_dict.get(largest_drug)
 
-    @property
-    def mass(self):
-        main_drug = self.drug_clean_dict.get(self.largest_drug)
-
-        if self.drugs is None:
+        if drugs is None:
             return None
 
-        pairs = self.drugs.split(";")
+        pairs = drugs.split(";")
 
         for pair in pairs:
             drug, val = pair.split(":")
@@ -822,8 +436,19 @@ class EntityExtractor:
                 print(f"Could noto conver drug mass to float: {mass}")
                 return None
 
-    @property
-    def summary_dict(self):
+    @staticmethod
+    def extract_features(self, text: str):
+        # text = text.lower()
+        self.text = text
+
+        self.sentences = self.split_sentences(text)
+
+        self.conviction = self.get_conviction(text)
+        if not self.conviction:  # TODO: if not convicted before, then there was no imprisonment
+            self.imprisonment = False
+
+        self.punishment_type, self.punishment_duration = self.get_punishment(self.text)
+
         summary_dict = {
             "Суд": self.court_name,
             # "Дата приговора": self.sentence_date,
