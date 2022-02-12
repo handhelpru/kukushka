@@ -313,17 +313,35 @@ class EntityExtractor:
         punishment_duration = 0
 
         sentence_match = regex_patterns.sentence_patterns.search(text)
-
+        postanovlenie_match = regex_patterns.postanovlenie_patterns.search(text)
+        
         # if there is no sentence pattern
-        if sentence_match == None:
+        if sentence_match is None and postanovlenie_match is None:
             return None, None
-
-        # get type of sentence - suspended or not
-        punishment_type = (
-            "Условное лишение свободы"
-            if all(e in text[sentence_match.start():] for e in regex_patterns.suspended_sentence_patterns               )
-            else "Лишение свободы"
-        )
+        if sentence_match:
+            sentence_text = text[sentence_match.start():]
+            # get type of sentence - suspended or not
+            punishment_type = (
+                "Условное лишение свободы"
+                if all(e in sentence_text for e in regex_patterns.suspended_sentence_patterns               )
+                else "Лишение свободы"
+            )
+            if punishment_type != "Условное лишение свободы":
+                ugo_shtraf_match = regex_patterns.ugo_shtraf_pattern.search(sentence_text)
+                if ugo_shtraf_match:
+                    punishment_type = 'Уголовное наказание - только штраф'
+                raboty_match = regex_patterns.raboty_pattern.search(sentence_text)
+                if raboty_match:
+                    punishment_type = 'Уголовные или исправительные работы'
+        elif postanovlenie_match:
+            postanovlenie_text = text[postanovlenie_match.start():]
+            sud_shtraf_match = regex_patterns.sud_shtraf_pattern.search(postanovlenie_text)
+            if sud_shtraf_match:
+                punishment_type = "Cудебный штраф"
+       
+        # years and months
+        years = 0
+        months = 0
 
         # years and months
         years = 0

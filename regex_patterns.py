@@ -11,7 +11,12 @@ conviction_patterns = ["ранее судим", "рецидив"]
 non_conviction_patterns = ["не судим", "не образующей рецидива", "не имеющий судимости", "не имеющая судимости"]
 
 # patterns to search sentence
-sentence_patterns = re.compile("приговорил|П Р И Г О В О Р И Л", re.IGNORECASE)
+sentence_patterns = re.compile("приговорил|П Р И Г О В О Р И Л|П Р И Г ОВ О Р ИЛ", re.IGNORECASE)
+
+postanovlenie_patterns = re.compile("постановил|П О С Т А Н О В И Л|П О С Т АН О В ИЛ", re.IGNORECASE)
+sud_shtraf_pattern = re.compile("судебн...штраф.")
+ugo_shtraf_pattern = re.compile("наказание в виде штрафа в размере")
+raboty_pattern = re.compile("принудительн.. работ|исправительн..работ")
 
 suspended_sentence_patterns = ["условн", " 73 "]
 
