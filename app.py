@@ -1,11 +1,20 @@
 import sys
 import traceback
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from datetime import datetime
 from loguru import logger
 from mappings import mapping
 import model_adapter
+
+
+origins = [
+    "https://orakul.hand-help.ru",
+    "https://angry-hypatia-500249.netlify.app/",
+    "http://localhost:8081",
+    "http://localhost:8082",
+]
 
 
 logger.remove()  # Removes default handler
@@ -46,6 +55,13 @@ sklearn_adapter = model_adapter.SklearnAdapter(
 xgboost_adapter = model_adapter.XgBoostAdapter()
 """
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.post("/predict")
 def predict(request_data: RequestModel, request: Request):
