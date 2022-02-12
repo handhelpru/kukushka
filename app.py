@@ -38,12 +38,13 @@ class RequestModel(BaseModel):
 app = FastAPI()
 
 fe = model_adapter.FeatureExtractor()
+"""
 sklearn_adapter = model_adapter.SklearnAdapter(
     model_fpath="model/model.pkl",
     label_encoder_path="model/type_label_encoder.pkl"
     )
 xgboost_adapter = model_adapter.XgBoostAdapter()
-
+"""
 
 @app.post("/predict")
 def predict(request_data: RequestModel, request: Request):
@@ -53,7 +54,7 @@ def predict(request_data: RequestModel, request: Request):
     try:
         now = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
         features = fe.extract_features(request_data=request_data)
-        return {"response": xgboost_adapter.predict(features)}
+        return {"response": model_adapter.XgBoostAdapter.predict(features)}
 
     except BaseException as e:
         logger.opt(exception=True).debug("Exception: ".format(e))
