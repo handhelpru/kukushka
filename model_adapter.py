@@ -105,10 +105,10 @@ class XgBoostAdapter:
 if __name__ == "__main__":
     test_features = ""
     features = FeatureExtractor().extract_features(test_features)
-
+    """
     sklearn_adapter = SklearnAdapter(
         model_fpath="model/model.pkl",
         label_encoder_path="model/type_label_encoder.pkl"
     )
-
     logger.debug(sklearn_adapter.test_predict(features=features))
+    """
