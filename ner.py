@@ -343,11 +343,16 @@ class EntityExtractor:
 
     def __init__(self, text):
         self.text = text.lower()
-        self.paragraphs = self.text.split("\n")
+        self.sentences = self.split_sentences(self.text)
         self.errors = []
-
-    @property
-    def court_name(self):
+    
+    def split_sentences(text: str):
+        doc = Doc(text.replace("\n", " "))
+        doc.segment(segmenter)
+        sentences = [d.text for d in doc.sents]
+        return sentences
+    
+    def get_court_name(self):
         """Суд, выносящий приговор"""
         try:
             match = self.court_name_pattern.search(self.text)
