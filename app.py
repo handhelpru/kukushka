@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request
 from pydantic import BaseModel
 from datetime import datetime
 from loguru import logger
-
+from mappings import mapping
 import model_adapter
 
 
@@ -21,6 +21,16 @@ logger.add(
 
 
 class RequestModel(BaseModel):
+    sex: int
+    region: int
+    drug: int
+    drug_amount: float
+    """
+    plea_guilty: int
+    recidive: 
+    imprisonment:
+    """
+    "отбывал ли ранее лишение свободы"
     # TODO: Add features, add validation
     pass
 
@@ -36,16 +46,24 @@ xgboost_adapter = model_adapter.XgBoostAdapter()
 
 
 @app.post("/predict")
-def predict(wav_file_request: RequestModel, request: Request):
+def predict(request_data: RequestModel, request: Request):
     ip = request.client.host  # Change to 'X-forwarded-from" if using NGINX
     logger.info(f"Request from {ip}")
 
     try:
-        logger.debug("Request file format: {}".format(wav_file_request.file_format))
         now = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
-        features = fe.extract_features(fpath=fpath)
+        features = fe.extract_features(request_data=request_data)
         return {"response": xgboost_adapter.predict(features)}
 
+    except BaseException as e:
+        logger.opt(exception=True).debug("Exception: ".format(e))
+        return {"Exception: ": traceback.print_exc()}
+
+
+@app.get("/metadata")
+def metadata(request: Request):
+    try:
+        return mapping
     except BaseException as e:
         logger.opt(exception=True).debug("Exception: ".format(e))
         return {"Exception: ": traceback.print_exc()}
