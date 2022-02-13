@@ -86,7 +86,7 @@ def predict(request_data: RequestModel, request: Request):
     try:
         now = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
         prediction = []
-        for label in [0, 1, 2, 4]:
+        for label in [0, 1, 2, 3]:
             d = {
                      "label": label,
                      "confidence": random.uniform(0, 1),
