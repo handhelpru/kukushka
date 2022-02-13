@@ -7,6 +7,10 @@ punishment_type_le = pickle.load(open('label_encoding/punishment_type_le.pkl', '
 def get_punishment_name(label):
     return punishment_type_le.inverse_transform(label)[0]
 
+sex_mapping = {
+    "Мужской": 0,
+    "Женский": 1
+}
 
 mapping = {
     "sex": {

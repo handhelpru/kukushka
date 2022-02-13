@@ -32,7 +32,7 @@ logger.add(
 
 
 class RequestModel(BaseModel):
-    sex: bool
+    sex: str
     region: str
     drug: str
     drug_amount: int
