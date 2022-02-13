@@ -30,10 +30,11 @@ logger.add(
 
 
 class RequestModel(BaseModel):
-    sex: str
+    sex: bool
     region: str
     drug: str
     drug_amount: float
+    conviction: bool
     """
     plea_guilty: int
     recidive: 
@@ -70,8 +71,29 @@ def predict(request_data: RequestModel, request: Request):
 
     try:
         now = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
-        features = fe.extract_features(request_data=request_data)
-        return {"response": model_adapter.XgBoostAdapter.predict(features)}
+        label = random.randint(0, 3)
+        punishment_text = mappings.get_punishment_name([label])
+        if punishment_text == "Уголовные или исправительные работы":
+            punishment_text = "Обязательные/исправительные работы"
+
+        if not request_data.conviction and request_data.drug_amount == "Значительный":
+            scenario_id = 1
+        if request_data.conviction and request_data.drug_amount == "Значительный":
+            scenario_id = 2
+        if request_data.drug_amount == "Крупный":
+            scenario_id = 3
+        if request_data.drug_amount == "Особо крупный":
+            scenario_id = 3
+        if request_data.drug_amount == "Меньше значительного":
+            scenario_id = 3
+
+        prediction = {
+            "label": label,
+            "confidence": random.uniform(0.4, 1),
+            "punishment_text": punishment_text,
+            'scenario_id': scenario_id
+                 }
+        return prediction
 
     except BaseException as e:
         logger.opt(exception=True).debug("Exception: ".format(e))
@@ -79,20 +101,22 @@ def predict(request_data: RequestModel, request: Request):
 
 
 @app.post("/test_predict")
-def predict(request_data: RequestModel, request: Request):
+def test_predict(request_data: RequestModel, request: Request):
     ip = request.client.host  # Change to 'X-forwarded-from" if using NGINX
     logger.info(f"Request from {ip}")
 
     try:
         now = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
         label = random.randint(0, 3)
-        scenario_id = mappings.get_punishment_name([label])
-        if scenario_id == "Уголовные или исправительные работы":
-            scenario_id = "Обязательные/исправительные работы"
+        punishment_text = mappings.get_punishment_name([label])
+        if punishment_text == "Уголовные или исправительные работы":
+            punishment_text = "Обязательные/исправительные работы"
+
         prediction = {
             "label": label,
             "confidence": random.uniform(0.4, 1),
-            "scenario_id": scenario_id
+            "punishment_text": punishment_text,
+            'scenario_id': None
                  }
         return prediction
 
