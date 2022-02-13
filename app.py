@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from datetime import datetime
 from loguru import logger
-from mappings import mapping
+import mappings
 import model_adapter
 import random
 
@@ -86,11 +86,11 @@ def predict(request_data: RequestModel, request: Request):
     try:
         now = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
         prediction = []
-        for label in [0,1,2,4]:
+        for label in [0, 1, 2, 4]:
             d = {
                      "label": label,
                      "confidence": random.uniform(0, 1),
-                     "scenario_id": mapping.get_punishment_name([label])
+                     "scenario_id": mappings.get_punishment_name([label])
                  }
             prediction.append(d)
         return prediction
@@ -103,7 +103,7 @@ def predict(request_data: RequestModel, request: Request):
 @app.get("/metadata")
 def metadata(request: Request):
     try:
-        return mapping
+        return mappings.mapping
     except BaseException as e:
         logger.opt(exception=True).debug("Exception: ".format(e))
         return {"Exception: ": traceback.print_exc()}
