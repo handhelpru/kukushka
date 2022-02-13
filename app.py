@@ -86,10 +86,13 @@ def predict(request_data: RequestModel, request: Request):
     try:
         now = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
         label = random.randint(0, 3)
+        scenario_id = mappings.get_punishment_name([label])
+        if scenario_id == "Уголовные или исправительные работы":
+            scenario_id = "Обязательные/исправительные работы"
         prediction = {
             "label": label,
             "confidence": random.uniform(0.4, 1),
-            "scenario_id": mappings.get_punishment_name([label])
+            "scenario_id":
                  }
         return prediction
 
