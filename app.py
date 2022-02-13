@@ -8,6 +8,8 @@ from loguru import logger
 import mappings
 import model_adapter
 import random
+import regex_patterns
+
 
 origins = [
     "https://orakul.hand-help.ru",
@@ -76,15 +78,28 @@ def predict(request_data: RequestModel, request: Request):
         if punishment_text == "Уголовные или исправительные работы":
             punishment_text = "Обязательные/исправительные работы"
 
-        if request_data.drug_amount == "Крупный":
+        drug_name = request_data.drug
+        for k,v in regex_patterns.drug_clean_dict.items():
+            if v == drug_name:
+                regex_drug_name = k
+                break
+
+        def get_size_id(sizes, drug_amount):
+            for s in sizes:
+                if drug_amount < s:
+                    return sizes.index(s)
+
+        sizes = regex_patterns.drugs_sizes.get(regex_drug_name)
+        size = get_size_id(sizes, request_data.drug_amount)
+        if size == 3:
             scenario_id = 3
-        if request_data.drug_amount == "Особо крупный":
+        if size == 3:
             scenario_id = 4
-        if request_data.drug_amount == "Меньше значительного":
+        if size == 1:
             scenario_id = 5
-        if not request_data.conviction and request_data.drug_amount == "Значительный":
+        if not request_data.conviction and size == 2:
             scenario_id = 1
-        if request_data.conviction and request_data.drug_amount == "Значительный":
+        if request_data.conviction and size == 2:
             scenario_id = 2
 
 
