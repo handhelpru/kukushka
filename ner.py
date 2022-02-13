@@ -116,10 +116,10 @@ class EntityExtractor:
         try:
             for p in regex_patterns.non_conviction_patterns:
                 if p in text:
-                    result =  False
+                    result = False
             for p in regex_patterns.conviction_patterns:
                 if p in text:
-                    result =  True
+                    result = True
 
             return result
             
@@ -142,7 +142,7 @@ class EntityExtractor:
             logger.warning(err_msg)
 
     @staticmethod
-    def get_drugs(text: str, normalize=False):
+    def get_drugs(text: str):
         """Словарь {Вид наркотика: количество}"""
         drugs = {}
         for pattern in regex_patterns.drugs_mass_patterns:
@@ -207,29 +207,10 @@ class EntityExtractor:
                 return None
 
         # TODO: move to self.normalize_values() with dict type check
-        if normalize:
-            drug_string = "; ".join(
-                k + ": " + EntityExtractor.normalize_value(v) for k, v in drugs.items()
-            )
-        else:
-             drug_string = "; ".join(
+        drug_string = "; ".join(
             k + ": " + v for k, v in drugs.items()
         )
         return drug_string
-    
-    @staticmethod
-    def normalize_value(value):
-        if isinstance(value, dict):
-            dict_value_normalized = {k: self.normalize_value(v) for k, v in summary_dict.items()}
-            return dict_value_normalized
-        if value==False:
-            return "нет"
-        if value==True:
-            return "да"
-        if value is None:
-            return "нет данных"
-        else:
-            return value
         
     @staticmethod
     def get_largest_drug(text: str, drugs: str):
