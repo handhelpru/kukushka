@@ -37,14 +37,6 @@ class RequestModel(BaseModel):
     drug: str
     drug_amount: float
     conviction: bool
-    """
-    plea_guilty: int
-    recidive: 
-    imprisonment:
-    """
-    "отбывал ли ранее лишение свободы"
-    # TODO: Add features, add validation
-    pass
 
 
 app = FastAPI()
