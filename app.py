@@ -35,7 +35,7 @@ class RequestModel(BaseModel):
     sex: bool
     region: str
     drug: str
-    drug_amount: float
+    drug_amount: int
     conviction: bool
 
 
