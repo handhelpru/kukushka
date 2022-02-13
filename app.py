@@ -76,16 +76,17 @@ def predict(request_data: RequestModel, request: Request):
         if punishment_text == "Уголовные или исправительные работы":
             punishment_text = "Обязательные/исправительные работы"
 
+        if request_data.drug_amount == "Крупный":
+            scenario_id = 3
+        if request_data.drug_amount == "Особо крупный":
+            scenario_id = 4
+        if request_data.drug_amount == "Меньше значительного":
+            scenario_id = 5
         if not request_data.conviction and request_data.drug_amount == "Значительный":
             scenario_id = 1
         if request_data.conviction and request_data.drug_amount == "Значительный":
             scenario_id = 2
-        if request_data.drug_amount == "Крупный":
-            scenario_id = 3
-        if request_data.drug_amount == "Особо крупный":
-            scenario_id = 3
-        if request_data.drug_amount == "Меньше значительного":
-            scenario_id = 3
+
 
         prediction = {
             "label": label,
