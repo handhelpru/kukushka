@@ -7,7 +7,7 @@ from datetime import datetime
 from loguru import logger
 from mappings import mapping
 import model_adapter
-
+import random
 
 origins = [
     "https://orakul.hand-help.ru",
@@ -72,6 +72,28 @@ def predict(request_data: RequestModel, request: Request):
         now = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
         features = fe.extract_features(request_data=request_data)
         return {"response": model_adapter.XgBoostAdapter.predict(features)}
+
+    except BaseException as e:
+        logger.opt(exception=True).debug("Exception: ".format(e))
+        return {"Exception: ": traceback.print_exc()}
+
+
+@app.post("/test_predict")
+def predict(request_data: RequestModel, request: Request):
+    ip = request.client.host  # Change to 'X-forwarded-from" if using NGINX
+    logger.info(f"Request from {ip}")
+
+    try:
+        now = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+        prediction = []
+        for label in [0,1,2,4]:
+            d = {
+                     "label": label,
+                     "confidence": random.uniform(0, 1),
+                     "scenario_id": mapping.get_punishment_name([label])
+                 }
+            prediction.append(d)
+        return prediction
 
     except BaseException as e:
         logger.opt(exception=True).debug("Exception: ".format(e))

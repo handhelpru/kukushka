@@ -1,3 +1,13 @@
+from sklearn.preprocessing import LabelEncoder
+import pickle
+
+punishment_type_le = pickle.load(open('label_encoding/punishment_type_le.pkl', 'rb'))
+
+
+def get_punishment_name(label):
+    return punishment_type_le.inverse_transform(label)[0]
+
+
 mapping = {
     "sex": {
         "name": "Пол",
