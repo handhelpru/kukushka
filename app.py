@@ -92,7 +92,7 @@ def predict(request_data: RequestModel, request: Request):
         prediction = {
             "label": label,
             "confidence": random.uniform(0.4, 1),
-            "scenario_id":
+            "scenario_id": scenario_id
                  }
         return prediction
 
