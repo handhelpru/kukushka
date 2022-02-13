@@ -36,6 +36,7 @@ class RequestModel(BaseModel):
     region: str
     drug: str
     drug_amount: float
+    conviction: bool
     """
     plea_guilty: int
     recidive: 
@@ -64,6 +65,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 @app.post("/predict")
 def predict(request_data: RequestModel, request: Request):
@@ -109,7 +111,7 @@ def predict(request_data: RequestModel, request: Request):
             "confidence": random.uniform(0.4, 1),
             "punishment_text": punishment_text,
             'scenario_id': scenario_id
-                 }
+        }
         return prediction
 
     except BaseException as e:
