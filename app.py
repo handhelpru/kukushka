@@ -67,6 +67,7 @@ def predict(request_data: RequestModel, request: Request):
     try:
         now = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
         label = random.randint(0, 3)
+        punishment_text = ""
         punishment_text = mappings.get_punishment_name([label])
         if punishment_text == "Уголовные или исправительные работы":
             punishment_text = "Обязательные/исправительные работы"
