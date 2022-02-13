@@ -320,9 +320,9 @@ class EntityExtractor:
             if sud_shtraf_match:
                 punishment_type = "Cудебный штраф"
        
-        # years and months
-        years = 0
-        months = 0
+        if punishment_type is None:
+            return None, None
+
 
         # years and months
         years = 0
