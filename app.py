@@ -84,15 +84,16 @@ def predict(request_data: RequestModel, request: Request):
 
             sizes = regex_patterns.drugs_sizes.get(regex_drug_name)
             size = get_size_id(sizes, request_data.drug_amount)
-            if size == 3:
+            scenario_id = 1
+            if size == 2:
                 scenario_id = 3
-            if size == 3:
+            if size == 2:
                 scenario_id = 4
-            if size == 1:
+            if size == 0:
                 scenario_id = 5
-            if not request_data.conviction and size == 2:
+            if not request_data.conviction and size == 1:
                 scenario_id = 1
-            if request_data.conviction and size == 2:
+            if request_data.conviction and size == 1:
                 scenario_id = 2
         except BaseException as e:
             label = 3
