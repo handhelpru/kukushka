@@ -213,7 +213,7 @@ class EntityExtractor:
         return drug_string
         
     @staticmethod
-    def get_largest_drug(text: str, drugs: str):
+    def get_largest_drug(drugs: str):
         """Выделение самого крупного по относительному размеру наркотика"""
 
         # строка со списком наркотиков, в рефакторинге можно перенести в метод drugs
