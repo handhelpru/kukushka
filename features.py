@@ -31,3 +31,4 @@ def map_article_to_size(article):
     for size_d in article_to_size:
         if article in size_d['values']:
             return size_d['title']
+    return None

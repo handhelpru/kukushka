@@ -53,7 +53,6 @@ class NameParser:
 
     @property
     def sex(self):
-
         # matches count
         cnt_male = 0
         cnt_female = 0
